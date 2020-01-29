@@ -44,33 +44,20 @@ def bulk_replace(s, d):
     return s
 
 class Person:
-    def __init__(self, name, classes=[], free=[], goals=[], preferences=[]):
+    def __init__(self, name, classes=[], preferences=[]):
         self.name = name
         self.classes = [Time(c) for c in classes]
-        self.free = [Time(c) for c in free]
+        self.preferences = preferences
 
     def score(self, bible_study):
         fail = False
-        bad = 0
+        bad = [0]*len(self.preferences)
 
-        class_time = False
         for time in self.classes:
             if bible_study.time.is_clash(time):
-                class_time = True
+                fail = True
 
-        free_time = not self.free
-        for time in self.free:
-            if bible_study.time.is_clash(time):
-                free_time = True
-
-        if class_time:
-            print('class_time', class_time, self.classes)
-            fail = True
-        if not free_time:
-            print('free_time', free_time)
-            fail = True
-
-        return 1 if fail else 0, bad
+        return fail, bad
 
     def __str__(self):
         return f'{name}: '
@@ -91,6 +78,7 @@ class BibleStudy:
 
         for goal in self.goals:
             if goal == 'even':
+                # make the bible studies as even as possible
                 pass
             elif goal == 'weekday':
                 if self.time.day in ('sat', 'sun'):
