@@ -1,7 +1,10 @@
 # Author:  Cody Lovett
 
 from tkinter import *
-from bible_study_organiser import Person, BibleStudy
+from tkinter.ttk import Progressbar
+from bible_study_organiser import Person, BibleStudy, Solver
+import threading
+import queue
 #
 # studies =[None, None]
 #
@@ -51,6 +54,22 @@ people_types = (
     'pastor',
 )
 
+
+class ThreadedToken:
+    def __init__(self, value):
+        self.value = value
+
+class ThreadGenerator:
+    def __init__(self, generator):
+        self.generator = generator
+
+    def run(self, queue, finish=None):
+        for item in self.generator:
+            queue.put(item)
+            if finish is not None and finish.value == True:
+                break
+
+
 class TKSuggestion:
     def __init__(self, root):
         self.root = root
@@ -73,16 +92,50 @@ class TKSuggestion:
         self.bible_box = Listbox(self.root, height=1)
         self.bible_box.grid(row=2, column=1, sticky=N+E+S+W)
 
-        self.people = []
-        self.studys = []
+        self.progress = Progressbar(self.root,orient=HORIZONTAL,mode='determinate')
+        self.progress.grid(row=3, column=0, columnspan=2, sticky=E+W)
 
-    def add_person(self, person):
+        self.people = []
+        self.studies = []
+
+        self.suggestion_queue = queue.Queue()
+        self.suggestions = []
+
+        self.restart_suggestions = False
+
+        self.solver = Solver(self.people, self.studies)
+        self.suggestion_generator = ThreadGenerator(self.solver.solve())
+
+        self.suggestion_thread = threading.Thread(
+            target=self.suggestion_generator.run,
+            args=(
+                self.suggestion_queue,
+                # self.restart_suggestions,
+            ),
+        )
+        self.suggestion_thread.start()
+        self.root.after(100, self.update_suggestions)
+
+    def update_suggestions(self):
+        # unsafe, but I "know" that here's the only place we're popping from
+        #   the queue
+        while True:
+            try:
+                value, score, done = self.suggestion_queue.get_nowait()
+                self.suggestions.append((value, score))
+                self.progress.value = int(done*100)
+            except queue.Empty:
+                break
+
+        self.root.after(100, self.update_suggestions)
+
+    def add_person(self, person: Person):
         self.people.append(person)
         self.people_box.insert(END, person.name)
         self.people_box.config(height=self.people_box.size())
 
-    def add_bible_study(self, study):
-        self.studys.append(study)
+    def add_bible_study(self, study: BibleStudy):
+        self.studies.append(study)
         size = self.bible_box.size()
         self.bible_box.insert(END, f'Bible study {size+1}')
         self.bible_box.config(height=size+1)

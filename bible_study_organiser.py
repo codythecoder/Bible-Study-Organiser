@@ -49,18 +49,19 @@ class Person:
         self.classes = [Time(c) for c in classes]
         self.preferences = preferences
 
-    def score(self, bible_study):
-        fail = False
+    def score(self, bible_studies):
         bad = [0]*len(self.preferences)
 
-        for time in self.classes:
-            if bible_study.time.is_clash(time):
-                fail = True
+        clash = True
+        for study in bible_studies:
+            if all(not study.time.is_clash(time) for time in self.classes):
+                clash = False
+                break
 
-        return fail, bad
+        return 1 if clash else 0, bad
 
     def __str__(self):
-        return f'{name}: '
+        return f'Person({name})'
 
 class BibleStudy:
     def __init__(self, hours=1, goals=[]):
@@ -122,7 +123,7 @@ class Time:
         for time in times:
             self.times.append((int(time[0]), int(time[1])))
 
-    def is_clash(self, other):
+    def is_clash(self, other: 'Time'):
         if self.day != other.day:
             return False
         for t1 in self.times:
@@ -132,36 +133,40 @@ class Time:
 
         return False
 
-def solve(people, bible_studies):
-    # study_times = product(days, list(range(24)))
-    study_times = product(['tue'], list(range(11, 18)))
-    num_studies = len(bible_studies)
-    num_people = len(people)
+class Solver:
+    study_times = tuple(product(days, list(range(24))))
 
-    scores = {}
+    def __init__(self, people, studies):
+        self.people = people
+        self.studies = studies
+        self.total_num_scores = len(self.study_times)*len(self.studies)
 
-    for times in permutations(study_times, num_studies):
-        for study, time in zip(bible_studies, times):
-            study.set_time(*time)
+    def solve(self):
+        num_people = len(self.people)
+        num_studies = len(self.studies)
 
-        assigned_study_combo = product(range(num_studies), repeat=num_people)
-        for assigned_study in assigned_study_combo:
+        if not self.studies or not self.people:
+            return
+
+        import random
+        for count, times in enumerate(permutations(self.study_times, num_studies)):
+            print(times)
+            yield times, random.randrange(100), count/self.total_num_scores
+            continue
+            for study, time in zip(bible_studies, times):
+                study.set_time(*time)
+
             total_score = [0, 0]
-            for person, study in zip(people, assigned_study):
-                score = person.score(bible_studies[study])
-                if score != (0, 0):
-                    print(person.name)
-                bible_studies[study].add_person(person)
+            for person in people:
+                score = person.score(bible_studies)
                 total_score = total_score[0] + score[0], total_score[1] + score[1]
 
             for study in bible_studies:
                 score = study.score()
                 total_score = total_score[0] + score[0], total_score[1] + score[1]
-                study.clear_people()
             # print(times + assigned_study, total_score)
-            scores[times + assigned_study] = total_score
+            yield times, total_score, count/self.total_num_scores
 
-    return scores
 
 # Here's the goals and preferences that people might have
 # class_day       - on the same day as a class
