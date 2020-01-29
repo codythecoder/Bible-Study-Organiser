@@ -63,7 +63,7 @@ class Person:
         return f'{name}: '
 
 class BibleStudy:
-    def __init__(self, hours, goals=[]):
+    def __init__(self, hours=1, goals=[]):
         self.hours = hours
         self.goals = goals
         self.time = None
@@ -120,7 +120,6 @@ class Time:
 
         self.times = []
         for time in times:
-            print(time)
             self.times.append((int(time[0]), int(time[1])))
 
     def is_clash(self, other):

@@ -1,7 +1,7 @@
 # Author:  Cody Lovett
 
 from tkinter import *
-# import bible_study_organiser as b
+from bible_study_organiser import Person, BibleStudy
 #
 # studies =[None, None]
 #
@@ -73,11 +73,16 @@ class TKSuggestion:
         self.bible_box = Listbox(self.root, height=1)
         self.bible_box.grid(row=2, column=1, sticky=N+E+S+W)
 
+        self.people = []
+        self.studys = []
+
     def add_person(self, person):
-        self.people_box.insert(END, person)
+        self.people.append(person)
+        self.people_box.insert(END, person.name)
         self.people_box.config(height=self.people_box.size())
 
     def add_bible_study(self, study):
+        self.studys.append(study)
         size = self.bible_box.size()
         self.bible_box.insert(END, f'Bible study {size+1}')
         self.bible_box.config(height=size+1)
@@ -114,8 +119,13 @@ class TKPerson:
 
         Button(self.root, text='Submit', command=self.submit).grid(row=4, column=1, sticky=E)
 
+    def get_person(self):
+        name = self.input_name.get()
+        times = self.input_times.get("1.0",END).strip().split('\n')
+        return Person(name, times)
+
     def submit(self):
-        self.add_fn(self.input_name.get())
+        self.add_fn(self.get_person())
         self.root.grab_release()
         self.root.destroy()
 
@@ -130,7 +140,8 @@ class TKBibleStudy:
         Label(self.root, text='Length:').grid(row=0, column=0, sticky=N+E)
         Label(self.root, text='Days:').grid(row=1, column=0, sticky=N+E)
 
-        Spinbox(self.root, from_=1, to=10).grid(row=0, column=1, sticky=E+W)
+        self.input_length = Spinbox(self.root, from_=1, to=10)
+        self.input_length.grid(row=0, column=1, sticky=E+W)
 
         Checkbutton(self.root, text='monday', variable=None).grid(row=1, column=1, sticky=W)
         Checkbutton(self.root, text='tuesday', variable=None).grid(row=2, column=1, sticky=W)
@@ -142,9 +153,12 @@ class TKBibleStudy:
 
         Button(self.root, text='Submit', command=self.submit).grid(row=8, column=1, sticky=E)
 
+    def get_study(self):
+        length = self.input_length.get()
+        return BibleStudy(length)
 
     def submit(self):
-        self.add_fn(None)
+        self.add_fn(self.get_study())
         self.root.grab_release()
         self.root.destroy()
 
