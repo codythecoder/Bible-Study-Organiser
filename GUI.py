@@ -103,22 +103,30 @@ class TKSuggestion:
         self.suggestion_thread = None
         self.finish_suggestions = ThreadedToken(None)
         self.restart_suggestions()
+        self.update_suggestions()
 
     def update_suggestions(self):
-        # unsafe, but I "know" that here's the only place we're popping from
-        #   the queue
+        changed = False
+
         while True:
             try:
                 value, score, done = self.suggestion_queue.get_nowait()
                 self.suggestions.append((value, score))
                 self.progress['value'] = int(done*100)
-                text = f'{score[0]:0>3} | {score[1]:0>3} | {", ".join(v[0] + " " + str(v[1]) for v in value)}'
-                self.times_box.insert(END, text)
+                changed = True
             except queue.Empty:
                 break
 
         if not self.suggestion_thread.is_alive():
             self.progress['value'] = 100
+
+        if changed:
+            self.times_box.delete(0,'end')
+
+            self.suggestions.sort(key=lambda x: x[1])
+            for value, score in self.suggestions:
+                text = f'{score[0]:0>3} | {score[1]:0>3} | {", ".join(v[0] + " " + str(v[1]) for v in value)}'
+                self.times_box.insert(END, text)
 
         self.root.after(1000, self.update_suggestions)
 
@@ -139,8 +147,7 @@ class TKSuggestion:
         print('change_settings')
 
     def restart_suggestions(self):
-        self.times_box.delete(0,'end')
-        
+        self.suggestions = []
         self.finish_suggestions.value = True
         if self.suggestion_thread is not None:
             self.suggestion_thread.join()
@@ -157,7 +164,6 @@ class TKSuggestion:
             ),
         )
         self.suggestion_thread.start()
-        self.root.after(1000, self.update_suggestions)
 
 
 class TKPerson:
