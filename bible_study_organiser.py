@@ -50,7 +50,7 @@ class Person:
         self.preferences = preferences
 
     def score(self, bible_studies):
-        bad = [0]*len(self.preferences)
+        bad = 0
 
         clash = True
         for study in bible_studies:
@@ -59,6 +59,15 @@ class Person:
                 break
 
         return 1 if clash else 0, bad
+
+    def details(self):
+        bad = [0]*len(self.preferences)
+
+        clash = []
+        for study in bible_studies:
+            clash.append(all(not study.time.is_clash(time) for time in self.classes))
+
+        return clash, bad
 
     def __str__(self):
         return f'Person({name})'
@@ -139,7 +148,7 @@ class Solver:
     def __init__(self, people, studies):
         self.people = people
         self.studies = studies
-        self.total_num_scores = len(self.study_times)*len(self.studies)
+        self.total_num_scores = len(self.study_times)**len(self.studies)
 
     def solve(self):
         num_people = len(self.people)
@@ -155,12 +164,11 @@ class Solver:
             total_score = [0, 0]
             for person in self.people:
                 score = person.score(self.studies)
-                total_score = total_score[0] + score[0], total_score[1] + sum(score[1])
+                total_score = total_score[0] + score[0], total_score[1] + score[1]
 
             for study in self.studies:
                 score = study.score()
                 total_score = total_score[0] + score[0], total_score[1] + score[1]
-            # print(times + assigned_study, total_score)
             yield times, total_score, count/self.total_num_scores
 
 

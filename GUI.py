@@ -5,6 +5,7 @@ from tkinter.ttk import Progressbar
 from bible_study_organiser import Person, BibleStudy, Solver
 import threading
 import queue
+import time
 #
 # studies =[None, None]
 #
@@ -54,6 +55,10 @@ people_types = (
     'pastor',
 )
 
+# in ms
+max_process_frame = 100
+usable_time = 100
+
 
 class ThreadedToken:
     def __init__(self, value):
@@ -73,6 +78,8 @@ class ThreadGenerator:
 class TKSuggestion:
     def __init__(self, root):
         self.root = root
+        root.protocol("WM_DELETE_WINDOW", self.close)
+
         Grid.columnconfigure(root, 0, weight=1)
         Grid.rowconfigure(root, 0, weight=1)
 
@@ -108,27 +115,29 @@ class TKSuggestion:
     def update_suggestions(self):
         changed = False
 
+        start = time.time()
         while True:
+            if time.time() > start + max_process_frame/1000:
+                break
             try:
                 value, score, done = self.suggestion_queue.get_nowait()
                 self.suggestions.append((value, score))
                 self.progress['value'] = int(done*100)
                 changed = True
+                print(done)
             except queue.Empty:
+                self.progress['value'] = 100
                 break
-
-        if not self.suggestion_thread.is_alive():
-            self.progress['value'] = 100
 
         if changed:
             self.times_box.delete(0,'end')
 
             self.suggestions.sort(key=lambda x: x[1])
-            for value, score in self.suggestions:
+            for value, score in self.suggestions[:100]:
                 text = f'{score[0]:0>3} | {score[1]:0>3} | {", ".join(v[0] + " " + str(v[1]) for v in value)}'
                 self.times_box.insert(END, text)
 
-        self.root.after(1000, self.update_suggestions)
+        self.root.after(usable_time, self.update_suggestions)
 
     def add_person(self, person: Person):
         self.people.append(person)
@@ -147,6 +156,7 @@ class TKSuggestion:
         print('change_settings')
 
     def restart_suggestions(self):
+        self.progress['value'] = 100
         self.suggestions = []
         self.finish_suggestions.value = True
         if self.suggestion_thread is not None:
@@ -164,6 +174,11 @@ class TKSuggestion:
             ),
         )
         self.suggestion_thread.start()
+
+    def close(self):
+        self.finish_suggestions.value = True
+        self.suggestion_thread.join()
+        self.root.destroy()
 
 
 class TKPerson:
