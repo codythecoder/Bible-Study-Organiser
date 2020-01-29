@@ -78,7 +78,6 @@ class TKSuggestion:
 
         self.times_box = Listbox(self.root)
         self.times_box.grid(row=0, column=0, rowspan=3, sticky=N+E+S+W)
-        self.times_box.insert(END, 'Tue 10am-11am, Wed 2pm-3pm')
 
         frm = Frame(root)
         frm.grid(row=0, column=1, sticky=N+E)
@@ -101,20 +100,9 @@ class TKSuggestion:
         self.suggestion_queue = queue.Queue()
         self.suggestions = []
 
-        self.restart_suggestions = False
-
-        self.solver = Solver(self.people, self.studies)
-        self.suggestion_generator = ThreadGenerator(self.solver.solve())
-
-        self.suggestion_thread = threading.Thread(
-            target=self.suggestion_generator.run,
-            args=(
-                self.suggestion_queue,
-                # self.restart_suggestions,
-            ),
-        )
-        self.suggestion_thread.start()
-        self.root.after(100, self.update_suggestions)
+        self.suggestion_thread = None
+        self.finish_suggestions = ThreadedToken(None)
+        self.restart_suggestions()
 
     def update_suggestions(self):
         # unsafe, but I "know" that here's the only place we're popping from
@@ -123,25 +111,53 @@ class TKSuggestion:
             try:
                 value, score, done = self.suggestion_queue.get_nowait()
                 self.suggestions.append((value, score))
-                self.progress.value = int(done*100)
+                self.progress['value'] = int(done*100)
+                text = f'{score[0]:0>3} | {score[1]:0>3} | {", ".join(v[0] + " " + str(v[1]) for v in value)}'
+                self.times_box.insert(END, text)
             except queue.Empty:
                 break
 
-        self.root.after(100, self.update_suggestions)
+        if not self.suggestion_thread.is_alive():
+            self.progress['value'] = 100
+
+        self.root.after(1000, self.update_suggestions)
 
     def add_person(self, person: Person):
         self.people.append(person)
         self.people_box.insert(END, person.name)
         self.people_box.config(height=self.people_box.size())
+        self.restart_suggestions()
 
     def add_bible_study(self, study: BibleStudy):
         self.studies.append(study)
         size = self.bible_box.size()
         self.bible_box.insert(END, f'Bible study {size+1}')
         self.bible_box.config(height=size+1)
+        self.restart_suggestions()
 
     def change_settings(self):
         print('change_settings')
+
+    def restart_suggestions(self):
+        self.times_box.delete(0,'end')
+        
+        self.finish_suggestions.value = True
+        if self.suggestion_thread is not None:
+            self.suggestion_thread.join()
+        self.finish_suggestions.value = False
+
+        self.solver = Solver(self.people, self.studies)
+        self.suggestion_generator = ThreadGenerator(self.solver.solve())
+
+        self.suggestion_thread = threading.Thread(
+            target=self.suggestion_generator.run,
+            args=(
+                self.suggestion_queue,
+                self.finish_suggestions,
+            ),
+        )
+        self.suggestion_thread.start()
+        self.root.after(1000, self.update_suggestions)
 
 
 class TKPerson:
@@ -164,7 +180,7 @@ class TKPerson:
         self.input_name = Entry(self.root)
         self.input_name.grid(row=0, column=1, sticky=E+W)
         self.input_times = Text(self.root, width=20, height=10)
-        self.input_times.grid(row=1, column=1)
+        self.input_times.grid(row=1, column=1, sticky=E+W)
 
         OptionMenu(self.root, self.input_role, *people_types).grid(row=2, column=1, sticky=W)
 
@@ -208,7 +224,7 @@ class TKBibleStudy:
 
     def get_study(self):
         length = self.input_length.get()
-        return BibleStudy(length)
+        return BibleStudy(int(length))
 
     def submit(self):
         self.add_fn(self.get_study())

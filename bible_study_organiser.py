@@ -148,20 +148,16 @@ class Solver:
         if not self.studies or not self.people:
             return
 
-        import random
         for count, times in enumerate(permutations(self.study_times, num_studies)):
-            print(times)
-            yield times, random.randrange(100), count/self.total_num_scores
-            continue
-            for study, time in zip(bible_studies, times):
+            for study, time in zip(self.studies, times):
                 study.set_time(*time)
 
             total_score = [0, 0]
-            for person in people:
-                score = person.score(bible_studies)
-                total_score = total_score[0] + score[0], total_score[1] + score[1]
+            for person in self.people:
+                score = person.score(self.studies)
+                total_score = total_score[0] + score[0], total_score[1] + sum(score[1])
 
-            for study in bible_studies:
+            for study in self.studies:
                 score = study.score()
                 total_score = total_score[0] + score[0], total_score[1] + score[1]
             # print(times + assigned_study, total_score)
