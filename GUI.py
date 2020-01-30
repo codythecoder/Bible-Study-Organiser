@@ -2,7 +2,7 @@
 
 from tkinter import *
 from tkinter.ttk import Progressbar
-from bible_study_organiser import Person, BibleStudy, Solver
+from src.bible_study_organiser import Person, BibleStudy, Solver
 import threading
 import queue
 import time

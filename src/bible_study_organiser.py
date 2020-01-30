@@ -112,7 +112,7 @@ class Time:
     def __init__(self, time):
         if type(time) == Time:
             self.day = time.day
-            self.times = list(time.times)
+            self.times = tuple(time.time)
             return
 
         if ' ' not in time:
@@ -125,22 +125,22 @@ class Time:
 
         self.day = day[:3].lower()
 
-        times = times.replace(' ', '').split(',')
-        times = [bulk_replace(t, time_24h).split('-') for t in times]
+        times = times.replace(' ', '')
+        times = bulk_replace(times, time_24h).split('-')
 
-        self.times = []
-        for time in times:
-            self.times.append((int(time[0]), int(time[1])))
+        self.times = (int(times[0]), int(times[1]))
 
     def is_clash(self, other: 'Time'):
         if self.day != other.day:
             return False
-        for t1 in self.times:
-            for t2 in other.times:
-                if t1[0] < t2[1] and t2[0] < t1[1]:
-                    return True
+
+        if self.times[0] < other.times[1] and other.times[0] < self.times[1]:
+            return True
 
         return False
+
+    def __str__(self):
+        return f'{self.day} {self.times[0]}-{self.times[1]}'
 
 class Solver:
     study_times = tuple(product(days, list(range(24))))
