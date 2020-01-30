@@ -58,7 +58,22 @@ class Person:
                 clash = False
                 break
 
-        return 1 if clash else 0, bad
+        if clash:
+            return 1, 0
+
+        if 'class_day' in self.preferences:
+            day = False
+            for study in bible_studies:
+                if any(study.time.day == time.day for time in self.classes):
+                    day = True
+                    break
+            if not day:
+                bad += 1
+
+        # if 'class_time' in self.preferences:
+        #     if
+
+        return 0, bad
 
     def details(self):
         bad = [0]*len(self.preferences)
@@ -128,7 +143,7 @@ class Time:
         times = times.replace(' ', '')
         times = bulk_replace(times, time_24h).split('-')
 
-        self.times = (int(times[0]), int(times[1]))
+        self.times = (int(times[0]), int(times[1]) or 24)
 
     def is_clash(self, other: 'Time'):
         if self.day != other.day:
@@ -138,6 +153,13 @@ class Time:
             return True
 
         return False
+
+    def distance(self, other: 'Time'):
+        if self.day != other.day:
+            return 24
+        if self.is_clash(self, other):
+            return 0
+        return min(abs(self.times[0] - other.times[1]), abs(other.times[0] - self.times[1]))
 
     def __str__(self):
         return f'{self.day} {self.times[0]}-{self.times[1]}'

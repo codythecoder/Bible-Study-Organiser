@@ -4,10 +4,12 @@ from tkinter import *
 from tkinter.ttk import Progressbar
 from tkinter import messagebox
 from src.bible_study_organiser import Person, BibleStudy, Solver
+from src.misc import mkdirpath
 import threading
 import queue
 import time
 import pickle
+import os
 #
 # studies =[None, None]
 #
@@ -61,7 +63,7 @@ people_types = (
 max_process_frame = 100
 usable_time = 100
 
-suggestion_count = 100
+suggestion_count = 1000
 
 people_cache = 'store/people.pkl'
 
@@ -205,6 +207,8 @@ class TKPerson:
 
         self.input_role = StringVar(self.root)
         self.input_pref_day = IntVar(self.root)
+        self.input_pref_time = IntVar(self.root)
+        self.input_pref_walk = IntVar(self.root)
 
         self.input_role.set(people_types[0])
 
@@ -215,7 +219,11 @@ class TKPerson:
 
         OptionMenu(self.root, self.input_role, *people_types).grid(row=2, column=1, sticky=W)
 
-        Checkbutton(self.root, text='class day', variable=self.input_pref_day).grid(row=3, column=1, sticky=W)
+        frm = Frame(self.root)
+        frm.grid(row=3, column=1, sticky=W)
+        Checkbutton(frm, text='class day', variable=self.input_pref_day).pack(anchor=W)
+        Checkbutton(frm, text='class time', variable=self.input_pref_time).pack(anchor=W)
+        Checkbutton(frm, text='no adjacent', variable=self.input_pref_walk).pack(anchor=W)
 
         Button(self.root, text='Submit', command=self.submit).grid(row=4, column=1, sticky=E)
 
@@ -223,11 +231,20 @@ class TKPerson:
             self.input_name.insert(0, person.name)
             times = '\n'.join(str(c) for c in person.classes)
             self.input_times.insert('1.0', times)
+            if 'class_day' in person.preferences:
+                self.input_pref_day.set(1)
+            if 'class_time' in person.preferences:
+                self.input_pref_time.set(1)
 
     def get_person(self):
         name = self.input_name.get()
         times = self.input_times.get("1.0",END).strip().split('\n')
-        return Person(name, times)
+        preferences = []
+        if self.input_pref_day.get():
+            preferences.append('class_day')
+        if self.input_pref_time.get():
+            preferences.append('class_time')
+        return Person(name, times, preferences)
 
     def submit(self):
         if self.return_data is not None:
@@ -284,6 +301,7 @@ class TKSettings:
         Button(self.root, text='done', command=self.submit).pack()
 
     def save(self):
+        mkdirpath(os.path.split(people_cache)[0])
         try:
             with open(people_cache, 'wb') as f:
                 pickle.dump(self.main.people, f)
