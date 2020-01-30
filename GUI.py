@@ -2,10 +2,12 @@
 
 from tkinter import *
 from tkinter.ttk import Progressbar
+from tkinter import messagebox
 from src.bible_study_organiser import Person, BibleStudy, Solver
 import threading
 import queue
 import time
+import pickle
 #
 # studies =[None, None]
 #
@@ -59,7 +61,9 @@ people_types = (
 max_process_frame = 100
 usable_time = 100
 
-suggestion_count = 20
+suggestion_count = 100
+
+people_cache = 'store/people.pkl'
 
 
 class ThreadedToken:
@@ -92,7 +96,7 @@ class TKSuggestion:
         frm.grid(row=0, column=1, sticky=N+E)
         Button(frm, text='add person', command=lambda: TKPerson(self.root, self.add_person)).pack(fill=BOTH)
         Button(frm, text='add bible study', command=lambda: TKBibleStudy(self.root, self.add_bible_study)).pack(fill=BOTH)
-        Button(frm, text='settings', command=self.change_settings).pack(fill=BOTH)
+        Button(frm, text='settings', command=lambda: TKSettings(self)).pack(fill=BOTH)
 
         self.people_box = Listbox(self.root, height=1)
         self.people_box.grid(row=1, column=1, sticky=N+E+S+W)
@@ -127,7 +131,6 @@ class TKSuggestion:
                 self.suggestions.append((value, score))
                 self.progress['value'] = done*100
                 changed = True
-                print(done)
             except queue.Empty:
                 self.progress['value'] = 100
                 break
@@ -160,9 +163,6 @@ class TKSuggestion:
         self.bible_box.insert(END, f'Bible study {size+1}')
         self.bible_box.config(height=size+1)
         self.restart_suggestions()
-
-    def change_settings(self):
-        print('change_settings')
 
     def restart_suggestions(self):
         self.progress['value'] = 100
@@ -270,6 +270,51 @@ class TKBibleStudy:
         self.root.grab_release()
         self.root.destroy()
 
+
+class TKSettings:
+    def __init__(self, main):
+        self.main = main
+
+        self.root = Toplevel(self.main.root)
+        self.root.grab_set()
+        self.root.title('Settings')
+
+        Button(self.root, text='save to file', command=self.save).pack()
+        Button(self.root, text='load from file', command=self.load).pack()
+        Button(self.root, text='done', command=self.submit).pack()
+
+    def save(self):
+        try:
+            with open(people_cache, 'wb') as f:
+                pickle.dump(self.main.people, f)
+        except FileNotFoundError:
+            messagebox.showinfo(title='fail', message='File not found')
+        except (IOError, PermissionError):
+            messagebox.showinfo(title='fail', message='File in use by another program.\nPlease try again later')
+        except Exception:
+            messagebox.showinfo(title='fail', message='Unknown error loading file')
+        else:
+            messagebox.showinfo(title='success', message='Save success')
+
+    def load(self):
+        try:
+            with open(people_cache, 'rb') as f:
+                people = pickle.load(f)
+        except FileNotFoundError:
+            messagebox.showinfo(title='fail', message='File not found')
+        except (IOError, PermissionError):
+            messagebox.showinfo(title='fail', message='File in use by another program.\nPlease try again later')
+        except Exception:
+            messagebox.showinfo(title='fail', message='Unknown error loading file')
+        else:
+            messagebox.showinfo(title='success', message='Load success')
+
+            for person in people:
+                self.main.add_person(person)
+
+    def submit(self):
+        self.root.grab_release()
+        self.root.destroy()
 
 main = Tk()
 
