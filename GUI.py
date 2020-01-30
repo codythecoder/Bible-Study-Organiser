@@ -59,6 +59,8 @@ people_types = (
 max_process_frame = 100
 usable_time = 100
 
+suggestion_count = 20
+
 
 class ThreadedToken:
     def __init__(self, value):
@@ -88,12 +90,13 @@ class TKSuggestion:
 
         frm = Frame(root)
         frm.grid(row=0, column=1, sticky=N+E)
-        Button(frm, text='add person', command=lambda: TKPerson(root, self.add_person)).pack(fill=BOTH)
-        Button(frm, text='add bible study', command=lambda: TKBibleStudy(root, self.add_bible_study)).pack(fill=BOTH)
+        Button(frm, text='add person', command=lambda: TKPerson(self.root, self.add_person)).pack(fill=BOTH)
+        Button(frm, text='add bible study', command=lambda: TKBibleStudy(self.root, self.add_bible_study)).pack(fill=BOTH)
         Button(frm, text='settings', command=self.change_settings).pack(fill=BOTH)
 
         self.people_box = Listbox(self.root, height=1)
         self.people_box.grid(row=1, column=1, sticky=N+E+S+W)
+        self.people_box.bind('<Double-Button-1>', lambda x: TKPerson(self.root, self.edit_person, self.people[self.people_box.curselection()[0]], self.people_box.curselection()[0]))
 
         self.bible_box = Listbox(self.root, height=1)
         self.bible_box.grid(row=2, column=1, sticky=N+E+S+W)
@@ -122,7 +125,7 @@ class TKSuggestion:
             try:
                 value, score, done = self.suggestion_queue.get_nowait()
                 self.suggestions.append((value, score))
-                self.progress['value'] = int(done*100)
+                self.progress['value'] = done*100
                 changed = True
                 print(done)
             except queue.Empty:
@@ -133,7 +136,7 @@ class TKSuggestion:
             self.times_box.delete(0,'end')
 
             self.suggestions.sort(key=lambda x: x[1])
-            for value, score in self.suggestions[:100]:
+            for value, score in self.suggestions[:suggestion_count]:
                 text = f'{score[0]:0>3} | {score[1]:0>3} | {", ".join(v[0] + " " + str(v[1]) for v in value)}'
                 self.times_box.insert(END, text)
 
@@ -143,6 +146,12 @@ class TKSuggestion:
         self.people.append(person)
         self.people_box.insert(END, person.name)
         self.people_box.config(height=self.people_box.size())
+        self.restart_suggestions()
+
+    def edit_person(self, person, index):
+        self.people[index] = person
+        self.people_box.delete(index)
+        self.people_box.insert(index, person.name)
         self.restart_suggestions()
 
     def add_bible_study(self, study: BibleStudy):
@@ -182,8 +191,9 @@ class TKSuggestion:
 
 
 class TKPerson:
-    def __init__(self, root, add_fn):
+    def __init__(self, root, add_fn, person: Person=None, return_data=None):
         self.add_fn = add_fn
+        self.return_data = return_data
         self.root = Toplevel(root)
         self.root.grab_set()
         self.root.title('Add Person')
@@ -209,13 +219,21 @@ class TKPerson:
 
         Button(self.root, text='Submit', command=self.submit).grid(row=4, column=1, sticky=E)
 
+        if person is not None:
+            self.input_name.insert(0, person.name)
+            times = '\n'.join(str(c) for c in person.classes)
+            self.input_times.insert('1.0', times)
+
     def get_person(self):
         name = self.input_name.get()
         times = self.input_times.get("1.0",END).strip().split('\n')
         return Person(name, times)
 
     def submit(self):
-        self.add_fn(self.get_person())
+        if self.return_data is not None:
+            self.add_fn(self.get_person(), self.return_data)
+        else:
+            self.add_fn(self.get_person())
         self.root.grab_release()
         self.root.destroy()
 
